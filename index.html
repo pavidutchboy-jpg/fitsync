@@ -58,6 +58,9 @@
     <button class="tab" data-tab="history">
       <span class="tab-icon">◷</span> History
     </button>
+    <button class="tab" data-tab="tasks">
+      <span class="tab-icon">☑</span> Tasks
+    </button>
   </nav>
 
   <!-- CONTENT -->
@@ -211,8 +214,100 @@
       </div>
     </section>
 
+    <!-- TASKS TAB -->
+    <section class="tab-panel" id="tab-tasks">
+      <div class="panel-heading">
+        <h2>Tasks</h2>
+        <div style="display:flex;gap:6px">
+          <span class="task-stat-chip" id="ts-active">0 active</span>
+          <span class="task-stat-chip urgent" id="ts-urgent"></span>
+        </div>
+      </div>
+
+      <div class="task-subtabs">
+        <button class="task-subtab active" data-ttab="active" onclick="switchTaskTab('active')">Active</button>
+        <button class="task-subtab" data-ttab="done" onclick="switchTaskTab('done')">Completed</button>
+      </div>
+
+      <div class="task-filters" id="task-filters">
+        <button class="tfilter active" data-f="all"     onclick="setTaskFilter('all')">All</button>
+        <button class="tfilter" data-f="high"           onclick="setTaskFilter('high')">🔴 High</button>
+        <button class="tfilter" data-f="med"            onclick="setTaskFilter('med')">🟡 Med</button>
+        <button class="tfilter" data-f="low"            onclick="setTaskFilter('low')">🟢 Low</button>
+        <button class="tfilter" data-f="overdue"        onclick="setTaskFilter('overdue')">⏰ Overdue</button>
+      </div>
+
+      <div id="task-add-row" style="margin-bottom:16px">
+        <button class="task-add-btn" onclick="openTaskModal()">
+          <span>+ New Task</span><span>↗</span>
+        </button>
+      </div>
+
+      <div class="tasks-list" id="tasks-list"></div>
+    </section>
+
   </main>
 </div>
+
+<!-- TASK MODAL -->
+<div class="tmodal-overlay" id="tmodal-overlay" onclick="tOverlayClick(event)">
+  <div class="tmodal">
+    <div class="tmodal-title" id="tmodal-title">New Task</div>
+    <div class="tform-group">
+      <label class="tform-label">Task *</label>
+      <input class="tform-input" id="tf-title" placeholder="What needs to be done?" maxlength="200"/>
+    </div>
+    <div class="tform-group">
+      <label class="tform-label">Notes</label>
+      <textarea class="tform-textarea" id="tf-notes" placeholder="Optional details..."></textarea>
+    </div>
+    <div class="tform-group">
+      <label class="tform-label">Priority</label>
+      <div class="tpriority-grid">
+        <button class="tp-btn" data-p="high" onclick="selTaskPriority('high')">🔴 High</button>
+        <button class="tp-btn sel" data-p="med" onclick="selTaskPriority('med')">🟡 Med</button>
+        <button class="tp-btn" data-p="low" onclick="selTaskPriority('low')">🟢 Low</button>
+      </div>
+    </div>
+    <div class="tform-row">
+      <div class="tform-group" style="margin:0">
+        <label class="tform-label">Due Date</label>
+        <input class="tform-input" id="tf-due" type="date"/>
+      </div>
+      <div class="tform-group" style="margin:0">
+        <label class="tform-label">Due Time</label>
+        <input class="tform-input" id="tf-due-time" type="time"/>
+      </div>
+    </div>
+    <div class="tform-group" style="margin-top:14px">
+      <label class="tform-label">Reminder</label>
+      <div class="treminder-row">
+        <div class="ttoggle-track" id="treminder-track" onclick="toggleTaskReminder()"></div>
+        <span class="ttoggle-text" id="treminder-text">Off</span>
+      </div>
+    </div>
+    <div class="tmodal-actions">
+      <button class="tmodal-cancel" onclick="closeTaskModal()">Cancel</button>
+      <button class="tmodal-save" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="tconfirm-overlay" id="tconfirm-overlay">
+  <div class="tconfirm-box">
+    <div style="font-size:32px;margin-bottom:12px">🗑</div>
+    <div class="tconfirm-title">Delete task?</div>
+    <div class="tconfirm-sub" id="tconfirm-sub">This cannot be undone.</div>
+    <div class="tconfirm-btns">
+      <button class="tconfirm-cancel" onclick="closeTConfirm()">Cancel</button>
+      <button class="tconfirm-del" onclick="confirmTaskDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="app-toast" id="app-toast"></div>
 
 <script src="app.js"></script>
 </body>

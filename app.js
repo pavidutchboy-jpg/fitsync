@@ -4,7 +4,7 @@
    Google Apps Script Web App URL.
    ============================================ */
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmPI4nArGUYFkuGb3s-ZtiNplqcJzuYTgdOnD_mMKhUiDajm105powjFO93nokZM1c/exec";
+const SCRIPT_URL = "YOUR_SCRIPT_URL_HERE";
 
 // ── State ──────────────────────────────────
 let currentUser = "Me";
@@ -73,6 +73,7 @@ function setupTabs() {
       if (tab.dataset.tab === 'today') loadToday();
       if (tab.dataset.tab === 'progress') loadProgress();
       if (tab.dataset.tab === 'history') loadHistory();
+      if (tab.dataset.tab === 'tasks') tasksInit();
     });
   });
 }
@@ -450,3 +451,271 @@ function registerSW() {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 }
+
+// ════════════════════════════════════════════
+// TASKS
+// ════════════════════════════════════════════
+
+let tasks = [];
+let taskTab = 'active';
+let taskFilter = 'all';
+let taskEditId = null;
+let taskDeleteId = null;
+let taskPriority = 'med';
+let taskReminderOn = false;
+
+function tasksInit() {
+  try { tasks = JSON.parse(localStorage.getItem('fitsync_tasks') || '[]'); }
+  catch { tasks = []; }
+  renderTasks();
+  updateTaskStats();
+}
+
+function saveTasks() { localStorage.setItem('fitsync_tasks', JSON.stringify(tasks)); }
+
+// ── sub-tab & filter ───────────────────────
+function switchTaskTab(t) {
+  taskTab = t;
+  document.querySelectorAll('.task-subtab').forEach(b => b.classList.toggle('active', b.dataset.ttab === t));
+  document.getElementById('task-filters').style.display = t === 'active' ? 'flex' : 'none';
+  document.getElementById('task-add-row').style.display = t === 'active' ? 'block' : 'none';
+  renderTasks();
+}
+
+function setTaskFilter(f) {
+  taskFilter = f;
+  document.querySelectorAll('.tfilter').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  renderTasks();
+}
+
+// ── render ─────────────────────────────────
+function renderTasks() {
+  const list = document.getElementById('tasks-list');
+  if (!list) return;
+  const todayStr = todayISO();
+  const pOrd = { high:0, med:1, low:2 };
+
+  if (taskTab === 'active') {
+    let items = tasks.filter(t => !t.done);
+    if (taskFilter === 'high')    items = items.filter(t => t.priority === 'high');
+    else if (taskFilter === 'med') items = items.filter(t => t.priority === 'med');
+    else if (taskFilter === 'low') items = items.filter(t => t.priority === 'low');
+    else if (taskFilter === 'overdue') items = items.filter(t => t.due && t.due < todayStr);
+
+    items.sort((a,b) => {
+      const ao = a.due && a.due < todayStr ? -1 : 0;
+      const bo = b.due && b.due < todayStr ? -1 : 0;
+      if (ao !== bo) return ao - bo;
+      if (pOrd[a.priority] !== pOrd[b.priority]) return pOrd[a.priority] - pOrd[b.priority];
+      if (a.due && b.due) return a.due.localeCompare(b.due);
+      if (a.due) return -1; if (b.due) return 1;
+      return b.createdAt - a.createdAt;
+    });
+
+    if (!items.length) {
+      list.innerHTML = `<div class="loading-state" style="border:1px dashed var(--border);border-radius:var(--radius)">
+        No tasks here.<br>Hit + New Task to add one 💪</div>`;
+      return;
+    }
+    list.innerHTML = items.map(t => taskCardHTML(t, todayStr)).join('');
+
+  } else {
+    const done = tasks.filter(t => t.done).sort((a,b) => b.doneAt - a.doneAt);
+    if (!done.length) {
+      list.innerHTML = `<div class="loading-state">No completed tasks yet.</div>`;
+      return;
+    }
+    const groups = {};
+    done.forEach(t => {
+      const d = new Date(t.doneAt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+      if (!groups[d]) groups[d] = [];
+      groups[d].push(t);
+    });
+    list.innerHTML = Object.entries(groups).map(([date, items]) =>
+      `<div class="tsection-label">${date}</div>` + items.map(t => taskCardHTML(t, todayStr)).join('')
+    ).join('');
+  }
+}
+
+function taskCardHTML(t, todayStr) {
+  const overdue = !t.done && t.due && t.due < todayStr;
+  const isToday = t.due === todayStr;
+  const doneClass = t.done ? 'task-done' : '';
+  const overdueClass = overdue ? 'task-overdue' : '';
+
+  let datePill = '';
+  if (t.due) {
+    const diff = Math.round((new Date(t.due) - new Date(todayStr)) / 86400000);
+    let label = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff === -1 ? 'Yesterday'
+      : diff < 0 ? `${Math.abs(diff)}d overdue`
+      : new Date(t.due + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    if (t.dueTime) label += ' ' + t.dueTime;
+    const cls = overdue ? 'overdue' : isToday ? 'due-today' : '';
+    datePill = `<span class="tpill date ${cls}">📅 ${label}</span>`;
+  }
+  const bellPill = t.reminder && !t.done ? `<span class="tpill bell">🔔</span>` : '';
+  const doneTime = t.done ? `<div class="task-done-time">Completed ${taskRelTime(t.doneAt)}</div>` : '';
+  const notesHtml = t.notes ? `<div class="task-notes-text">${tEsc(t.notes)}</div>` : '';
+
+  return `<div class="task-card ${doneClass} ${overdueClass}">
+    <button class="tcheck-btn" onclick="toggleTask('${t.id}')">${t.done ? '✓' : ''}</button>
+    <div class="task-body">
+      <div class="task-title-text">${tEsc(t.title)}</div>
+      <div class="task-pills">
+        <span class="tpill ${t.priority}">${t.priority}</span>
+        ${datePill}${bellPill}
+      </div>
+      ${notesHtml}${doneTime}
+    </div>
+    <div class="task-actions">
+      ${!t.done ? `<button class="ticon-btn" onclick="openTaskEdit('${t.id}')">✎</button>` : ''}
+      <button class="ticon-btn tdel" onclick="askTaskDelete('${t.id}')">✕</button>
+    </div>
+  </div>`;
+}
+
+function updateTaskStats() {
+  const active = tasks.filter(t => !t.done);
+  const todayStr = todayISO();
+  const overdue = active.filter(t => t.due && t.due < todayStr).length;
+  document.getElementById('ts-active').textContent = `${active.length} active`;
+  const urgentEl = document.getElementById('ts-urgent');
+  if (overdue > 0) {
+    urgentEl.textContent = `${overdue} overdue`;
+    urgentEl.classList.add('urgent');
+    urgentEl.style.display = 'inline-flex';
+  } else {
+    urgentEl.style.display = 'none';
+  }
+}
+
+// ── CRUD ───────────────────────────────────
+function openTaskModal() {
+  taskEditId = null; taskPriority = 'med'; taskReminderOn = false;
+  document.getElementById('tmodal-title').textContent = 'New Task';
+  document.getElementById('tf-title').value = '';
+  document.getElementById('tf-notes').value = '';
+  document.getElementById('tf-due').value = '';
+  document.getElementById('tf-due-time').value = '';
+  document.querySelectorAll('.tp-btn').forEach(b => b.classList.toggle('sel', b.dataset.p === 'med'));
+  updateTaskReminderUI();
+  document.getElementById('tmodal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('tf-title').focus(), 300);
+}
+
+function openTaskEdit(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  taskEditId = id; taskPriority = t.priority; taskReminderOn = !!t.reminder;
+  document.getElementById('tmodal-title').textContent = 'Edit Task';
+  document.getElementById('tf-title').value = t.title;
+  document.getElementById('tf-notes').value = t.notes || '';
+  document.getElementById('tf-due').value = t.due || '';
+  document.getElementById('tf-due-time').value = t.dueTime || '';
+  document.querySelectorAll('.tp-btn').forEach(b => b.classList.toggle('sel', b.dataset.p === t.priority));
+  updateTaskReminderUI();
+  document.getElementById('tmodal-overlay').classList.add('open');
+}
+
+function closeTaskModal() { document.getElementById('tmodal-overlay').classList.remove('open'); }
+function tOverlayClick(e) { if (e.target === document.getElementById('tmodal-overlay')) closeTaskModal(); }
+
+function selTaskPriority(p) {
+  taskPriority = p;
+  document.querySelectorAll('.tp-btn').forEach(b => b.classList.toggle('sel', b.dataset.p === p));
+}
+
+function toggleTaskReminder() {
+  taskReminderOn = !taskReminderOn;
+  updateTaskReminderUI();
+}
+function updateTaskReminderUI() {
+  document.getElementById('treminder-track').classList.toggle('on', taskReminderOn);
+  document.getElementById('treminder-text').textContent = taskReminderOn
+    ? 'On — notification when due' : 'Off';
+}
+
+function saveTask() {
+  const title = document.getElementById('tf-title').value.trim();
+  if (!title) {
+    const el = document.getElementById('tf-title');
+    el.style.borderColor = 'var(--danger)';
+    el.focus();
+    setTimeout(() => el.style.borderColor = '', 1200);
+    return;
+  }
+  const due = document.getElementById('tf-due').value;
+  const dueTime = document.getElementById('tf-due-time').value;
+  const notes = document.getElementById('tf-notes').value.trim();
+
+  if (taskEditId) {
+    const idx = tasks.findIndex(t => t.id === taskEditId);
+    if (idx !== -1) tasks[idx] = { ...tasks[idx], title, notes, priority: taskPriority, due, dueTime, reminder: taskReminderOn };
+    appToast('Task updated');
+  } else {
+    tasks.unshift({ id: tUID(), title, notes, priority: taskPriority, due, dueTime, reminder: taskReminderOn, done: false, createdAt: Date.now(), doneAt: null });
+    appToast('Task added ✓');
+  }
+  saveTasks(); renderTasks(); updateTaskStats(); closeTaskModal();
+  scheduleTaskReminders();
+}
+
+function toggleTask(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  t.done = !t.done; t.doneAt = t.done ? Date.now() : null;
+  saveTasks(); renderTasks(); updateTaskStats();
+  if (t.done) appToast('Marked complete ✓');
+}
+
+function askTaskDelete(id) {
+  taskDeleteId = id;
+  const t = tasks.find(x => x.id === id);
+  document.getElementById('tconfirm-sub').textContent = t
+    ? `"${t.title.slice(0,40)}${t.title.length > 40 ? '...' : ''}"` : '';
+  document.getElementById('tconfirm-overlay').classList.add('open');
+}
+function closeTConfirm() { document.getElementById('tconfirm-overlay').classList.remove('open'); taskDeleteId = null; }
+function confirmTaskDelete() {
+  if (!taskDeleteId) return;
+  tasks = tasks.filter(t => t.id !== taskDeleteId);
+  saveTasks(); renderTasks(); updateTaskStats(); closeTConfirm();
+  appToast('Task deleted');
+}
+
+// ── Reminders ──────────────────────────────
+function scheduleTaskReminders() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') Notification.requestPermission();
+  const now = Date.now();
+  tasks.filter(t => !t.done && t.reminder && t.due).forEach(t => {
+    const ds = t.due + (t.dueTime ? `T${t.dueTime}:00` : 'T09:00:00');
+    const delay = new Date(ds).getTime() - now;
+    if (delay > 0 && delay < 86400000 * 2) {
+      setTimeout(() => {
+        if (Notification.permission === 'granted') {
+          new Notification('⚡ FitSync — Task Due', { body: t.title, tag: t.id });
+        }
+      }, delay);
+    }
+  });
+}
+
+// ── Utils ──────────────────────────────────
+function todayISO() { return new Date().toLocaleDateString('en-CA'); }
+function tUID() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+function tEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function taskRelTime(ts) {
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return new Date(ts).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+function appToast(msg) {
+  const el = document.getElementById('app-toast'); if (!el) return;
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// Init tasks when tab is first opened (wired in setupTabs below)
+
