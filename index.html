@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FitSync" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>FitSync</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <div class="splash-icon">⚡</div>
+    <h1 class="splash-title">FitSync</h1>
+    <p class="splash-sub">Track together. Grow stronger.</p>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app" class="app hidden">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <span class="header-icon">⚡</span>
+      <span class="header-title">FitSync</span>
+    </div>
+    <div class="header-right">
+      <div class="user-toggle">
+        <button class="user-btn active" data-user="Me" id="btn-me">Me</button>
+        <button class="user-btn" data-user="Wife" id="btn-wife">Wife</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="log">
+      <span class="tab-icon">✦</span> Log
+    </button>
+    <button class="tab" data-tab="today">
+      <span class="tab-icon">◎</span> Today
+    </button>
+    <button class="tab" data-tab="progress">
+      <span class="tab-icon">▲</span> Progress
+    </button>
+    <button class="tab" data-tab="history">
+      <span class="tab-icon">◷</span> History
+    </button>
+  </nav>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- LOG TAB -->
+    <section class="tab-panel active" id="tab-log">
+      <div class="panel-heading">
+        <h2>Log Entry</h2>
+        <span class="date-chip" id="today-date"></span>
+      </div>
+
+      <div class="cards-grid">
+
+        <div class="card toggle-card" id="card-protein">
+          <div class="card-icon">🥤</div>
+          <div class="card-info">
+            <span class="card-label">Protein Shake</span>
+            <span class="card-sub">Track your intake</span>
+          </div>
+          <div class="toggle-wrap">
+            <input type="checkbox" id="protein-toggle" class="toggle-input" />
+            <label for="protein-toggle" class="toggle-label"></label>
+          </div>
+        </div>
+
+        <div class="card amount-card" id="protein-grams-card" style="display:none">
+          <div class="card-icon">📊</div>
+          <div class="card-info">
+            <span class="card-label">Protein Amount</span>
+          </div>
+          <div class="amount-ctrl">
+            <button class="amt-btn" onclick="adjust('protein-amount', -5)">−</button>
+            <span class="amt-val"><input type="number" id="protein-amount" value="30" min="0" max="200" />g</span>
+            <button class="amt-btn" onclick="adjust('protein-amount', 5)">+</button>
+          </div>
+        </div>
+
+        <div class="card toggle-card" id="card-creatine">
+          <div class="card-icon">💊</div>
+          <div class="card-info">
+            <span class="card-label">Creatine</span>
+            <span class="card-sub">5g daily dose</span>
+          </div>
+          <div class="toggle-wrap">
+            <input type="checkbox" id="creatine-toggle" class="toggle-input" />
+            <label for="creatine-toggle" class="toggle-label"></label>
+          </div>
+        </div>
+
+        <div class="card workout-card">
+          <div class="card-top">
+            <div class="card-icon">🏋️</div>
+            <div class="card-info">
+              <span class="card-label">Workout</span>
+            </div>
+            <div class="toggle-wrap">
+              <input type="checkbox" id="workout-toggle" class="toggle-input" />
+              <label for="workout-toggle" class="toggle-label"></label>
+            </div>
+          </div>
+          <div id="workout-detail" class="workout-detail" style="display:none">
+            <div class="workout-type-grid">
+              <button class="wtype-btn" data-type="Push">Push</button>
+              <button class="wtype-btn" data-type="Pull">Pull</button>
+              <button class="wtype-btn" data-type="Legs">Legs</button>
+              <button class="wtype-btn" data-type="Full Body">Full Body</button>
+              <button class="wtype-btn" data-type="Cardio">Cardio</button>
+              <button class="wtype-btn" data-type="Rest">Rest</button>
+            </div>
+            <textarea id="workout-notes" placeholder="Notes (optional)..." class="workout-notes"></textarea>
+          </div>
+        </div>
+
+        <div class="card mood-card">
+          <div class="card-icon">✦</div>
+          <div class="card-info">
+            <span class="card-label">Energy Level</span>
+          </div>
+          <div class="mood-emojis">
+            <button class="mood-btn" data-mood="1">😴</button>
+            <button class="mood-btn" data-mood="2">😐</button>
+            <button class="mood-btn" data-mood="3">😊</button>
+            <button class="mood-btn" data-mood="4">😤</button>
+            <button class="mood-btn" data-mood="5">🔥</button>
+          </div>
+        </div>
+
+      </div>
+
+      <button class="submit-btn" id="submit-btn" onclick="submitLog()">
+        <span id="submit-text">Save Entry</span>
+        <span class="submit-arrow">→</span>
+      </button>
+
+      <div id="submit-status" class="status-msg hidden"></div>
+    </section>
+
+    <!-- TODAY TAB -->
+    <section class="tab-panel" id="tab-today">
+      <div class="panel-heading">
+        <h2>Today's Summary</h2>
+        <span class="date-chip" id="today-date2"></span>
+      </div>
+      <div class="today-grid" id="today-grid">
+        <div class="loading-state">Loading today's data...</div>
+      </div>
+    </section>
+
+    <!-- PROGRESS TAB -->
+    <section class="tab-panel" id="tab-progress">
+      <div class="panel-heading">
+        <h2>Progress</h2>
+        <div class="range-toggle">
+          <button class="range-btn active" data-range="7">7D</button>
+          <button class="range-btn" data-range="14">14D</button>
+          <button class="range-btn" data-range="30">30D</button>
+        </div>
+      </div>
+      <div class="charts-wrap">
+        <div class="chart-card">
+          <h3 class="chart-title">Consistency Streak</h3>
+          <div class="streak-display" id="streak-display">
+            <div class="streak-num" id="streak-num">--</div>
+            <div class="streak-label">day streak</div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-title">Weekly Activity</h3>
+          <canvas id="barChart" height="160"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-title">Protein Intake (g)</h3>
+          <canvas id="lineChart" height="160"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3 class="chart-title">Habits Completed</h3>
+          <div class="habit-rings" id="habit-rings"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY TAB -->
+    <section class="tab-panel" id="tab-history">
+      <div class="panel-heading">
+        <h2>History</h2>
+        <button class="refresh-btn" onclick="loadHistory()">↻ Refresh</button>
+      </div>
+      <div id="history-list" class="history-list">
+        <div class="loading-state">Loading history...</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
