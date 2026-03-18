@@ -149,6 +149,78 @@
           </div>
         </div>
 
+        <!-- WEIGHT CARD -->
+        <div class="card weight-card" id="card-weight">
+          <div class="weight-card-top">
+            <div class="card-icon">⚖️</div>
+            <div class="card-info">
+              <span class="card-label">Weight</span>
+              <span class="card-sub" id="weight-last-logged">Optional — log today's weight</span>
+            </div>
+            <div class="toggle-wrap">
+              <input type="checkbox" id="weight-toggle" class="toggle-input" />
+              <label for="weight-toggle" class="toggle-label"></label>
+            </div>
+          </div>
+          <div id="weight-detail" style="display:none;margin-top:14px">
+            <div class="weight-input-row">
+              <button class="amt-btn" onclick="adjust('weight-input', -0.5)">−</button>
+              <div class="weight-val-wrap">
+                <input type="number" id="weight-input" value="70" min="20" max="300" step="0.1" class="weight-val-input" oninput="recalcBMI();loadWeightGoalProgress()"/>
+                <div class="weight-unit-toggle">
+                  <button class="wunit-btn active" id="wunit-kg" onclick="setWeightUnit('kg')">kg</button>
+                  <button class="wunit-btn" id="wunit-lbs" onclick="setWeightUnit('lbs')">lbs</button>
+                </div>
+              </div>
+              <button class="amt-btn" onclick="adjust('weight-input', 0.5)">+</button>
+            </div>
+            <div class="goal-weight-row">
+              <span class="goal-weight-label">Goal weight:</span>
+              <input type="number" id="goal-weight-input" class="goal-weight-field" placeholder="e.g. 75" step="0.1"/>
+              <span class="goal-weight-unit" id="goal-weight-unit">kg</span>
+              <button class="goal-save-btn" onclick="saveGoalWeight()">Set</button>
+            </div>
+            <div id="weight-goal-progress" class="weight-goal-progress" style="display:none">
+              <div class="wgp-labels">
+                <span id="wgp-start-label"></span>
+                <span id="wgp-goal-label"></span>
+              </div>
+              <div class="wgp-bar-track">
+                <div class="wgp-bar-fill" id="wgp-fill"></div>
+              </div>
+              <div class="wgp-status" id="wgp-status"></div>
+            </div>
+
+            <!-- BMI -->
+            <div class="bmi-section">
+              <div class="bmi-header">
+                <span class="bmi-title">BMI Calculator</span>
+                <div class="bmi-height-row">
+                  <span class="bmi-height-label">Height:</span>
+                  <input type="number" id="height-input" class="bmi-height-field" placeholder="175" step="1" oninput="recalcBMI()"/>
+                  <span class="bmi-height-unit" id="height-unit-label">cm</span>
+                  <button class="goal-save-btn" onclick="saveHeight()">Set</button>
+                </div>
+              </div>
+              <div id="bmi-result" class="bmi-result" style="display:none">
+                <div class="bmi-score-row">
+                  <div class="bmi-score" id="bmi-score">--</div>
+                  <div class="bmi-category" id="bmi-category"></div>
+                </div>
+                <div class="bmi-bar-wrap">
+                  <div class="bmi-bar">
+                    <div class="bmi-bar-seg underweight">Underweight<br/>&lt;18.5</div>
+                    <div class="bmi-bar-seg normal">Normal<br/>18.5–24.9</div>
+                    <div class="bmi-bar-seg overweight">Overweight<br/>25–29.9</div>
+                    <div class="bmi-bar-seg obese">Obese<br/>≥30</div>
+                  </div>
+                  <div class="bmi-marker" id="bmi-marker"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <button class="submit-btn" id="submit-btn" onclick="submitLog()">
@@ -199,6 +271,17 @@
         <div class="chart-card">
           <h3 class="chart-title">Habits Completed</h3>
           <div class="habit-rings" id="habit-rings"></div>
+        </div>
+        <div class="chart-card">
+          <div class="weight-chart-header">
+            <h3 class="chart-title" style="margin:0">Weight Trend</h3>
+            <div class="weight-user-toggle">
+              <button class="wuser-btn active" data-wu="Me" onclick="setWeightChartUser('Me')">Me</button>
+              <button class="wuser-btn" data-wu="Wife" onclick="setWeightChartUser('Wife')">Wife</button>
+            </div>
+          </div>
+          <canvas id="weightChart" height="160" style="margin-top:16px"></canvas>
+          <div id="weight-chart-stats" class="weight-chart-stats"></div>
         </div>
       </div>
     </section>

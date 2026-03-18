@@ -715,3 +715,185 @@ html, body {
   white-space: nowrap; z-index: 400; letter-spacing: 0.01em;
 }
 .app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ════════════════════════════════════════════
+   WEIGHT TRACKING
+   ════════════════════════════════════════════ */
+
+.weight-card { }
+.weight-card-top { display: flex; align-items: center; gap: 14px; }
+
+.weight-input-row {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin-bottom: 14px;
+}
+.weight-val-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.weight-val-input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--font-display);
+  font-size: 40px; font-weight: 800; letter-spacing: -1px;
+  width: 110px; text-align: center;
+  -moz-appearance: textfield;
+}
+.weight-val-input::-webkit-inner-spin-button,
+.weight-val-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.weight-unit-toggle {
+  display: flex; gap: 3px; background: var(--surface2);
+  border-radius: 100px; padding: 3px; border: 1px solid var(--border);
+}
+.wunit-btn {
+  background: none; border: none; color: var(--text-muted);
+  font-family: var(--font-display); font-size: 11px; font-weight: 700;
+  padding: 4px 10px; border-radius: 100px; cursor: pointer;
+  transition: all 0.15s; text-transform: uppercase;
+}
+.wunit-btn.active { background: var(--accent); color: #000; }
+
+/* goal weight row */
+.goal-weight-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: var(--surface2);
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+.goal-weight-label { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+.goal-weight-field {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--font-display);
+  font-size: 14px; font-weight: 700; min-width: 0;
+  -moz-appearance: textfield;
+}
+.goal-weight-field::-webkit-inner-spin-button,
+.goal-weight-field::-webkit-outer-spin-button { -webkit-appearance: none; }
+.goal-weight-field::placeholder { color: var(--text-dim); font-weight: 400; font-family: var(--font-body); }
+.goal-weight-unit { font-size: 12px; color: var(--text-muted); }
+.goal-save-btn {
+  background: var(--accent); color: #000; border: none;
+  font-family: var(--font-display); font-size: 12px; font-weight: 800;
+  padding: 5px 12px; border-radius: 100px; cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* goal progress bar */
+.weight-goal-progress { margin-top: 4px; }
+.wgp-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text-muted); margin-bottom: 6px;
+}
+.wgp-bar-track {
+  height: 6px; background: var(--surface2); border-radius: 100px; overflow: hidden;
+}
+.wgp-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent));
+  border-radius: 100px; transition: width 0.6s ease;
+  min-width: 4px;
+}
+.wgp-status {
+  font-size: 12px; color: var(--text-muted); margin-top: 6px; text-align: center;
+}
+
+/* weight chart header */
+.weight-chart-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.weight-user-toggle {
+  display: flex; gap: 3px; background: var(--surface2);
+  border-radius: 100px; padding: 3px; border: 1px solid var(--border);
+}
+.wuser-btn {
+  background: none; border: none; color: var(--text-muted);
+  font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  padding: 4px 12px; border-radius: 100px; cursor: pointer; transition: all 0.15s;
+}
+.wuser-btn.active { background: var(--accent2); color: #fff; }
+
+/* weight stats row below chart */
+.weight-chart-stats {
+  display: flex; gap: 0; margin-top: 14px;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); overflow: hidden;
+}
+.wcs-item {
+  flex: 1; text-align: center; padding: 10px 4px;
+  border-right: 1px solid var(--border);
+}
+.wcs-item:last-child { border-right: none; }
+.wcs-val {
+  font-family: var(--font-display); font-size: 16px; font-weight: 800;
+  color: var(--text); display: block; line-height: 1;
+}
+.wcs-val.positive { color: var(--danger); }
+.wcs-val.negative { color: var(--success); }
+.wcs-label { font-size: 10px; color: var(--text-muted); margin-top: 3px; display: block; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ── BMI ── */
+.bmi-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.bmi-header { margin-bottom: 10px; }
+.bmi-title {
+  font-family: var(--font-display);
+  font-size: 12px; font-weight: 700;
+  color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.08em; display: block; margin-bottom: 8px;
+}
+.bmi-height-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: var(--surface2);
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+}
+.bmi-height-label { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+.bmi-height-field {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--font-display);
+  font-size: 14px; font-weight: 700; min-width: 0;
+  -moz-appearance: textfield;
+}
+.bmi-height-field::-webkit-inner-spin-button,
+.bmi-height-field::-webkit-outer-spin-button { -webkit-appearance: none; }
+.bmi-height-field::placeholder { color: var(--text-dim); font-weight: 400; font-family: var(--font-body); }
+.bmi-height-unit { font-size: 12px; color: var(--text-muted); }
+
+.bmi-result { margin-top: 12px; }
+.bmi-score-row {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.bmi-score {
+  font-family: var(--font-display);
+  font-size: 44px; font-weight: 800; line-height: 1;
+  letter-spacing: -1px;
+}
+.bmi-category {
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 700;
+  padding: 4px 12px; border-radius: 100px;
+}
+.bmi-category.underweight { background: rgba(100,160,255,0.12); color: #64a0ff; }
+.bmi-category.normal      { background: rgba(77,255,180,0.12);  color: var(--success); }
+.bmi-category.overweight  { background: rgba(255,178,51,0.12);  color: #ffb233; }
+.bmi-category.obese       { background: rgba(255,91,91,0.12);   color: var(--danger); }
+
+.bmi-bar-wrap { position: relative; padding-bottom: 4px; }
+.bmi-bar {
+  display: grid; grid-template-columns: 2fr 2.9fr 2fr 2fr;
+  border-radius: var(--radius-sm); overflow: hidden;
+  height: 36px;
+}
+.bmi-bar-seg {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 600; text-align: center;
+  line-height: 1.2; padding: 2px;
+}
+.bmi-bar-seg.underweight { background: rgba(100,160,255,0.18); color: #64a0ff; }
+.bmi-bar-seg.normal      { background: rgba(77,255,180,0.18);  color: var(--success); }
+.bmi-bar-seg.overweight  { background: rgba(255,178,51,0.18);  color: #ffb233; }
+.bmi-bar-seg.obese       { background: rgba(255,91,91,0.18);   color: var(--danger); }
+.bmi-marker {
+  position: absolute; top: -4px;
+  width: 3px; height: 44px;
+  background: var(--text); border-radius: 2px;
+  transition: left 0.4s ease;
+  transform: translateX(-50%);
+}

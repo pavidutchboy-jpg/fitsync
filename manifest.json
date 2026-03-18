@@ -2,8 +2,7 @@
   "name": "FitSync",
   "short_name": "FitSync",
   "description": "Track protein, creatine, and workouts — synced with your partner.",
-  "start_url": "/fitsync/",
-  "scope": "/fitsync/"
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#0a0a0f",

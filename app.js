@@ -31,6 +31,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupWorkout();
   setupMood();
   setupRangeBtns();
+  setupWeightCard();
   registerSW();
 });
 
@@ -56,6 +57,19 @@ function setupUserToggle() {
       document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentUser = btn.dataset.user;
+      // Refresh weight card for new user
+      const lastEntry = getWeightLogs(currentUser).slice(-1)[0];
+      if (lastEntry) {
+        document.getElementById('weight-input').value = lastEntry.weight;
+        document.getElementById('weight-last-logged').textContent =
+          `Last: ${lastEntry.weight}${weightUnit} on ${new Date(lastEntry.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' })}`;
+      } else {
+        document.getElementById('weight-last-logged').textContent = 'Optional — log today\'s weight';
+      }
+      const goal = getWeightGoal(currentUser);
+      document.getElementById('goal-weight-input').value = goal || '';
+      loadWeightGoalProgress();
+      loadBMIForUser();
     });
   });
 }
@@ -155,6 +169,7 @@ async function submitLog() {
 
   // Save locally always
   saveLocal(payload);
+  persistWeightIfLogged();
 
   if (SCRIPT_URL === "YOUR_SCRIPT_URL_HERE") {
     // Demo mode — no backend
@@ -187,7 +202,7 @@ function showStatus(msg, type) {
 // ── Local storage ──────────────────────────
 function saveLocal(entry) {
   const logs = getLocalLogs();
-  logs.unshift({ ...entry, ts: new Date().toISOString() });
+  logs.unshift({ ...entry, ts: new Date().toISOString(), id: Math.random().toString(36).slice(2,10) + Date.now().toString(36) });
   localStorage.setItem('fitsync_logs', JSON.stringify(logs.slice(0, 500)));
 }
 
@@ -267,6 +282,7 @@ function loadProgress() {
   renderBarChart(logs);
   renderLineChart(logs);
   renderHabitRings(logs);
+  renderWeightChart();
 }
 
 function renderStreak(logs) {
@@ -427,7 +443,7 @@ async function loadHistory() {
   }
 
   container.innerHTML = logs.slice(0, 50).map(l => `
-    <div class="history-item">
+    <div class="history-item" id="hitem-${l.id || ''}">
       <div class="history-dot ${l.name === 'Wife' ? 'wife' : ''}"></div>
       <div class="history-body">
         <div class="history-meta">
@@ -441,8 +457,26 @@ async function loadHistory() {
           ${l.mood ? `<span class="badge done">${moodEmoji(l.mood)}</span>` : ''}
         </div>
       </div>
+      ${l.id ? `<button class="ticon-btn tdel" onclick="askLogDelete('${l.id}')" title="Delete">✕</button>` : ''}
     </div>
   `).join('');
+}
+
+let logDeleteId = null;
+
+function askLogDelete(id) {
+  logDeleteId = id;
+  document.getElementById('tconfirm-sub').textContent = 'This log entry will be permanently removed.';
+  document.getElementById('tconfirm-overlay').classList.add('open');
+  // Override confirm button to call log delete
+  document.getElementById('tconfirm-overlay').dataset.mode = 'log';
+}
+
+function deleteLogEntry(id) {
+  const logs = getLocalLogs().filter(l => l.id !== id);
+  localStorage.setItem('fitsync_logs', JSON.stringify(logs));
+  loadHistory();
+  appToast('Entry deleted');
 }
 
 // ── SERVICE WORKER ─────────────────────────
@@ -673,12 +707,23 @@ function askTaskDelete(id) {
     ? `"${t.title.slice(0,40)}${t.title.length > 40 ? '...' : ''}"` : '';
   document.getElementById('tconfirm-overlay').classList.add('open');
 }
-function closeTConfirm() { document.getElementById('tconfirm-overlay').classList.remove('open'); taskDeleteId = null; }
+function closeTConfirm() {
+  document.getElementById('tconfirm-overlay').classList.remove('open');
+  document.getElementById('tconfirm-overlay').dataset.mode = '';
+  taskDeleteId = null;
+}
 function confirmTaskDelete() {
-  if (!taskDeleteId) return;
-  tasks = tasks.filter(t => t.id !== taskDeleteId);
-  saveTasks(); renderTasks(); updateTaskStats(); closeTConfirm();
-  appToast('Task deleted');
+  const mode = document.getElementById('tconfirm-overlay').dataset.mode;
+  if (mode === 'log') {
+    if (logDeleteId) deleteLogEntry(logDeleteId);
+    logDeleteId = null;
+  } else {
+    if (!taskDeleteId) return;
+    tasks = tasks.filter(t => t.id !== taskDeleteId);
+    saveTasks(); renderTasks(); updateTaskStats();
+    appToast('Task deleted');
+  }
+  closeTConfirm();
 }
 
 // ── Reminders ──────────────────────────────
@@ -718,4 +763,274 @@ function appToast(msg) {
 }
 
 // Init tasks when tab is first opened (wired in setupTabs below)
+
+// ════════════════════════════════════════════
+// WEIGHT TRACKING
+// ════════════════════════════════════════════
+
+let weightUnit = 'kg';
+let weightChartUser = 'Me';
+let weightChartInst = null;
+
+function setupWeightCard() {
+  const toggle = document.getElementById('weight-toggle');
+  toggle.addEventListener('change', () => {
+    const detail = document.getElementById('weight-detail');
+    detail.style.display = toggle.checked ? 'block' : 'none';
+    document.getElementById('card-weight').classList.toggle('is-active', toggle.checked);
+    if (toggle.checked) loadWeightGoalProgress();
+    if (toggle.checked) loadBMIForUser();
+  });
+
+  // Pre-fill last logged weight for current user
+  const lastEntry = getWeightLogs(currentUser).slice(-1)[0];
+  if (lastEntry) {
+    document.getElementById('weight-input').value = lastEntry.weight;
+    document.getElementById('weight-last-logged').textContent =
+      `Last: ${lastEntry.weight}${weightUnit} on ${new Date(lastEntry.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' })}`;
+  }
+
+  // Pre-fill goal
+  const goal = getWeightGoal(currentUser);
+  if (goal) document.getElementById('goal-weight-input').value = goal;
+}
+
+function setWeightUnit(u) {
+  weightUnit = u;
+  document.getElementById('wunit-kg').classList.toggle('active', u === 'kg');
+  document.getElementById('wunit-lbs').classList.toggle('active', u === 'lbs');
+  document.getElementById('goal-weight-unit').textContent = u;
+  // Convert displayed value
+  const input = document.getElementById('weight-input');
+  const val = parseFloat(input.value);
+  if (!isNaN(val)) {
+    input.value = u === 'lbs' ? Math.round(val * 2.20462 * 10) / 10 : Math.round(val / 2.20462 * 10) / 10;
+  }
+}
+
+function saveGoalWeight() {
+  const val = parseFloat(document.getElementById('goal-weight-input').value);
+  if (isNaN(val) || val <= 0) return;
+  const goals = JSON.parse(localStorage.getItem('fitsync_weight_goals') || '{}');
+  goals[currentUser] = val;
+  localStorage.setItem('fitsync_weight_goals', JSON.stringify(goals));
+  appToast('Goal weight saved ✓');
+  loadWeightGoalProgress();
+}
+
+function getWeightGoal(user) {
+  try { return JSON.parse(localStorage.getItem('fitsync_weight_goals') || '{}')[user] || null; }
+  catch { return null; }
+}
+
+function getWeightLogs(user) {
+  try {
+    const all = JSON.parse(localStorage.getItem('fitsync_weight_logs') || '{}');
+    return (all[user] || []).sort((a, b) => a.date.localeCompare(b.date));
+  } catch { return []; }
+}
+
+function saveWeightLog(user, weight, date) {
+  const all = JSON.parse(localStorage.getItem('fitsync_weight_logs') || '{}');
+  if (!all[user]) all[user] = [];
+  // Replace if same date, else append
+  const idx = all[user].findIndex(e => e.date === date);
+  if (idx !== -1) all[user][idx].weight = weight;
+  else all[user].push({ date, weight });
+  localStorage.setItem('fitsync_weight_logs', JSON.stringify(all));
+}
+
+function loadWeightGoalProgress() {
+  const weightInput = parseFloat(document.getElementById('weight-input').value);
+  const goal = getWeightGoal(currentUser);
+  const logs = getWeightLogs(currentUser);
+  const progressEl = document.getElementById('weight-goal-progress');
+
+  if (!goal || logs.length === 0) { progressEl.style.display = 'none'; return; }
+
+  const startWeight = logs[0].weight;
+  const current = weightInput || logs[logs.length - 1].weight;
+  const totalDiff = Math.abs(goal - startWeight);
+  const done = Math.abs(current - startWeight);
+  const pct = totalDiff === 0 ? 100 : Math.min(100, Math.round((done / totalDiff) * 100));
+  const remaining = Math.abs(goal - current).toFixed(1);
+  const losing = goal < startWeight;
+
+  document.getElementById('wgp-start-label').textContent = `Start: ${startWeight}${weightUnit}`;
+  document.getElementById('wgp-goal-label').textContent = `Goal: ${goal}${weightUnit}`;
+  document.getElementById('wgp-fill').style.width = pct + '%';
+
+  let status = '';
+  if (Math.abs(goal - current) < 0.5) status = '🎉 Goal reached!';
+  else status = `${remaining}${weightUnit} to go · ${pct}% there`;
+  document.getElementById('wgp-status').textContent = status;
+  progressEl.style.display = 'block';
+}
+
+// Called from submitLog to include weight
+function getWeightLogValue() {
+  const toggle = document.getElementById('weight-toggle');
+  if (!toggle.checked) return null;
+  const val = parseFloat(document.getElementById('weight-input').value);
+  return isNaN(val) ? null : val;
+}
+
+function persistWeightIfLogged() {
+  const val = getWeightLogValue();
+  if (val !== null) saveWeightLog(currentUser, val, today());
+}
+
+// ── BMI ────────────────────────────────────
+function getHeight(user) {
+  try { return JSON.parse(localStorage.getItem('fitsync_heights') || '{}')[user] || null; }
+  catch { return null; }
+}
+
+function saveHeight() {
+  const val = parseFloat(document.getElementById('height-input').value);
+  if (isNaN(val) || val < 50 || val > 280) {
+    document.getElementById('height-input').style.borderColor = 'var(--danger)';
+    setTimeout(() => document.getElementById('height-input').style.borderColor = '', 1200);
+    return;
+  }
+  const heights = JSON.parse(localStorage.getItem('fitsync_heights') || '{}');
+  heights[currentUser] = val;
+  localStorage.setItem('fitsync_heights', JSON.stringify(heights));
+  appToast('Height saved ✓');
+  recalcBMI();
+}
+
+function recalcBMI() {
+  const weightVal = parseFloat(document.getElementById('weight-input').value);
+  const heightVal = parseFloat(document.getElementById('height-input').value);
+  if (isNaN(weightVal) || isNaN(heightVal) || heightVal < 50) {
+    document.getElementById('bmi-result').style.display = 'none';
+    return;
+  }
+
+  // Always calculate in kg/cm — convert if lbs
+  const weightKg = weightUnit === 'lbs' ? weightVal / 2.20462 : weightVal;
+  const heightM = heightVal / 100;
+  const bmi = weightKg / (heightM * heightM);
+  const bmiRounded = Math.round(bmi * 10) / 10;
+
+  let cat, catClass;
+  if (bmi < 18.5)      { cat = 'Underweight'; catClass = 'underweight'; }
+  else if (bmi < 25)   { cat = 'Normal';      catClass = 'normal'; }
+  else if (bmi < 30)   { cat = 'Overweight';  catClass = 'overweight'; }
+  else                 { cat = 'Obese';        catClass = 'obese'; }
+
+  document.getElementById('bmi-score').textContent = bmiRounded;
+  const catEl = document.getElementById('bmi-category');
+  catEl.textContent = cat;
+  catEl.className = 'bmi-category ' + catClass;
+
+  // Position marker: BMI scale 14–40 mapped to 0–100%
+  const pct = Math.min(100, Math.max(0, ((bmi - 14) / 26) * 100));
+  document.getElementById('bmi-marker').style.left = pct + '%';
+
+  document.getElementById('bmi-result').style.display = 'block';
+}
+
+function loadBMIForUser() {
+  const h = getHeight(currentUser);
+  if (h) {
+    document.getElementById('height-input').value = h;
+    recalcBMI();
+  } else {
+    document.getElementById('height-input').value = '';
+    document.getElementById('bmi-result').style.display = 'none';
+  }
+}
+
+// ── Weight chart (Progress tab) ────────────
+function setWeightChartUser(u) {
+  weightChartUser = u;
+  document.querySelectorAll('.wuser-btn').forEach(b => b.classList.toggle('active', b.dataset.wu === u));
+  renderWeightChart();
+}
+
+function renderWeightChart() {
+  const ctx = document.getElementById('weightChart');
+  if (!ctx) return;
+  if (weightChartInst) { weightChartInst.destroy(); weightChartInst = null; }
+
+  const logs = getWeightLogs(weightChartUser);
+  const range = currentRange || 30;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - range);
+  const filtered = logs.filter(e => new Date(e.date + 'T12:00:00') >= cutoff);
+
+  const statsEl = document.getElementById('weight-chart-stats');
+
+  if (filtered.length === 0) {
+    ctx.parentElement.querySelector('canvas').style.display = 'none';
+    statsEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;width:100%">No weight entries yet for ${weightChartUser}</div>`;
+    return;
+  }
+  ctx.style.display = 'block';
+
+  const labels = filtered.map(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+  });
+  const data = filtered.map(e => e.weight);
+  const goal = getWeightGoal(weightChartUser);
+
+  const datasets = [{
+    label: 'Weight',
+    data,
+    borderColor: '#c8f135',
+    backgroundColor: 'rgba(200,241,53,0.07)',
+    borderWidth: 2,
+    tension: 0.35,
+    fill: true,
+    pointBackgroundColor: '#c8f135',
+    pointRadius: filtered.length < 15 ? 4 : 2,
+    spanGaps: false
+  }];
+
+  if (goal) {
+    datasets.push({
+      label: 'Goal',
+      data: Array(filtered.length).fill(goal),
+      borderColor: 'rgba(123,111,255,0.5)',
+      borderDash: [5, 5],
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: false,
+      tension: 0
+    });
+  }
+
+  weightChartInst = new Chart(ctx.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { display: goal ? true : false, labels: { color: '#6b6b80', font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { backgroundColor: '#1c1c26', titleColor: '#f0f0f5', bodyColor: '#6b6b80', borderColor: 'rgba(255,255,255,0.07)', borderWidth: 1 }
+      },
+      scales: {
+        x: { ticks: { color: '#6b6b80', font: { size: 11 }, maxTicksLimit: 7 }, grid: { display: false } },
+        y: { ticks: { color: '#6b6b80', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+
+  // Stats row
+  const first = data[0], last = data[data.length - 1];
+  const change = (last - first).toFixed(1);
+  const min = Math.min(...data).toFixed(1);
+  const max = Math.max(...data).toFixed(1);
+  const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : '';
+  const changeSign = change > 0 ? '+' : '';
+  statsEl.innerHTML = `
+    <div class="wcs-item"><span class="wcs-val">${last}</span><span class="wcs-label">Current</span></div>
+    <div class="wcs-item"><span class="wcs-val ${changeClass}">${changeSign}${change}</span><span class="wcs-label">Change</span></div>
+    <div class="wcs-item"><span class="wcs-val">${min}</span><span class="wcs-label">Low</span></div>
+    <div class="wcs-item"><span class="wcs-val">${max}</span><span class="wcs-label">High</span></div>
+    ${goal ? `<div class="wcs-item"><span class="wcs-val">${Math.abs(goal - last).toFixed(1)}</span><span class="wcs-label">To Goal</span></div>` : ''}
+  `;
+}
 
